@@ -1,6 +1,7 @@
 from access_points import get_scanner
 from logger import create_log_filename, get_current_time, write_to_log_file
 import argparse
+import netifaces
 
 def retrieve_access_points():
 	wifi_scanner = get_scanner()
@@ -16,14 +17,14 @@ def create_host(ssid, interface, password):
 	host_data = '''
 beacon_int=100
 ssid=%s
-interface=%s
+interface=ks0
 driver=%s
 channel=6
 ctrl_interface=hostapd_ctrl
 ctrl_interface_group=0
 ap_isolate=0
 hw_mode=g
-''' % (ssid, interface, "nl80211")
+''' % (ssid, "nl80211")
 	print(host_data)
 	file.write(host_data)
 	file.close()
@@ -40,6 +41,28 @@ no-hosts
 	file.write(dhcp_data)
 	print(dhcp_data)
 	file.close()
+	mac_address = netifaces.ifaddresses(interface)[netifaces.AF_LINK][0]['addr'][:-2] + "e2"
+	print("Adding new interface ks0 with ",mac_address)
+	interface_commands = '''
+ip link set dev ks0 address %s
+ip link set down dev ks0
+ip addr flush ks0
+ip link set up dev ks0
+ip addr add 192.168.12.1/24 broadcast 192.168.12.255 dev ks0
+iptables -w -t nat -I POSTROUTING -s 192.168.12.0/24 ! -o ks0 -j MASQUERADE
+iptables -w -I FORWARD -i ks0 -s 192.168.12.0/24 -j ACCEPT
+iptables -w -I FORWARD -i %s -d 192.168.12.0/24 -j ACCEPT
+echo 1 > /proc/sys/net/ipv4/conf/%s/forwarding
+echo 1 > /proc/sys/net/ipv4/ip_forward''' % (mac_address, interface, interface)
+	dns_commands = '''
+iptables -w -I INPUT -p tcp -m tcp --dport 5353 -j ACCEPT
+iptables -w -I INPUT -p udp -m udp --dport 5353 -j ACCEPT
+iptables -w -t nat -I PREROUTING -s 192.168.12.0/24 -d 192.168.12.1 -p tcp -m tcp --dport 53 -j REDIRECT --to-ports 5353
+iptables -w -t nat -I PREROUTING -s 192.168.12.0/24 -d 192.168.12.1 -p udp -m udp --dport 53 -j REDIRECT --to-ports 5353
+iptables -w -I INPUT -p udp -m udp --dport 67 -j ACCEPT'''
+	print(interface_commands, dns_commands)
+	
+
 
 def main():
 	parser = argparse.ArgumentParser()
