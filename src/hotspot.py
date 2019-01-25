@@ -44,6 +44,7 @@ no-hosts
 	mac_address = netifaces.ifaddresses(interface)[netifaces.AF_LINK][0]['addr'][:-2] + "e2"
 	print("Adding new interface ks0 with ",mac_address)
 	interface_commands = '''
+chmod 777 hostapd.conf dnsmasq.conf
 ip link set dev ks0 address %s
 ip link set down dev ks0
 ip addr flush ks0
@@ -53,7 +54,9 @@ iptables -w -t nat -I POSTROUTING -s 192.168.12.0/24 ! -o ks0 -j MASQUERADE
 iptables -w -I FORWARD -i ks0 -s 192.168.12.0/24 -j ACCEPT
 iptables -w -I FORWARD -i %s -d 192.168.12.0/24 -j ACCEPT
 echo 1 > /proc/sys/net/ipv4/conf/%s/forwarding
-echo 1 > /proc/sys/net/ipv4/ip_forward''' % (mac_address, interface, interface)
+echo 1 > /proc/sys/net/ipv4/ip_forward
+modprobe nf_nat_pptp > /dev/null 2>&1''' % (mac_address, interface, interface)
+
 	dns_commands = '''
 iptables -w -I INPUT -p tcp -m tcp --dport 5353 -j ACCEPT
 iptables -w -I INPUT -p udp -m udp --dport 5353 -j ACCEPT
@@ -61,7 +64,12 @@ iptables -w -t nat -I PREROUTING -s 192.168.12.0/24 -d 192.168.12.1 -p tcp -m tc
 iptables -w -t nat -I PREROUTING -s 192.168.12.0/24 -d 192.168.12.1 -p udp -m udp --dport 53 -j REDIRECT --to-ports 5353
 iptables -w -I INPUT -p udp -m udp --dport 67 -j ACCEPT'''
 	print(interface_commands, dns_commands)
-	
+
+	start_access_point = '''
+dnsmasq -C dnsmasq.conf -x dnsmasq.pid -l dnsmasq.leases -p 5353
+stdbuf hostapd hostapd.conf &
+'''
+
 
 
 def main():
