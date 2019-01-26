@@ -1,7 +1,9 @@
 from access_points import get_scanner
 from logger import create_log_filename, get_current_time, write_to_log_file
 import argparse
+import subprocess
 import netifaces
+import os
 
 def retrieve_access_points():
 	wifi_scanner = get_scanner()
@@ -13,9 +15,8 @@ def retrieve_access_points():
 	return access_points
 
 def create_host(ssid, interface, password):
-	file = open("hostapd.conf", "a")
-	host_data = '''
-beacon_int=100
+	file = open("hostapd.conf", "w")
+	host_data = '''beacon_int=100
 ssid=%s
 interface=ks0
 driver=%s
@@ -28,11 +29,10 @@ hw_mode=g
 	print(host_data)
 	file.write(host_data)
 	file.close()
-	file = open("dnsmasq.conf", "a")
-	dhcp_data = '''
-listen-address=192.168.12.1
+	file = open("dnsmasq.conf", "w")
+	dhcp_data = '''listen-address=192.168.12.1
 bind-dynamic
-dhcp-range=192.168.12.1,192.168.12.254,255.255.255.0,24hr
+dhcp-range=192.168.12.1,192.168.12.254,255.255.255.0,24h
 dhcp-option-force=option:router,192.168.12.1
 dhcp-option-force=option:dns-server,192.168.12.1
 dhcp-option-force=option:mtu,1500
@@ -43,10 +43,10 @@ no-hosts
 	file.close()
 	mac_address = netifaces.ifaddresses(interface)[netifaces.AF_LINK][0]['addr'][:-2] + "e2"
 	print("Adding new interface ks0 with ",mac_address)
-	interface_commands = '''
-chmod 777 hostapd.conf dnsmasq.conf
-ip link set dev ks0 address %s
+	interface_commands = '''chmod 777 hostapd.conf dnsmasq.conf
+iw dev %s interface add ks0 type __ap
 ip link set down dev ks0
+ip link set dev ks0 address %s
 ip addr flush ks0
 ip link set up dev ks0
 ip addr add 192.168.12.1/24 broadcast 192.168.12.255 dev ks0
@@ -55,7 +55,7 @@ iptables -w -I FORWARD -i ks0 -s 192.168.12.0/24 -j ACCEPT
 iptables -w -I FORWARD -i %s -d 192.168.12.0/24 -j ACCEPT
 echo 1 > /proc/sys/net/ipv4/conf/%s/forwarding
 echo 1 > /proc/sys/net/ipv4/ip_forward
-modprobe nf_nat_pptp > /dev/null 2>&1''' % (mac_address, interface, interface)
+modprobe nf_nat_pptp > /dev/null 2>&1''' % (interface, mac_address, interface, interface)
 
 	dns_commands = '''
 iptables -w -I INPUT -p tcp -m tcp --dport 5353 -j ACCEPT
@@ -64,13 +64,16 @@ iptables -w -t nat -I PREROUTING -s 192.168.12.0/24 -d 192.168.12.1 -p tcp -m tc
 iptables -w -t nat -I PREROUTING -s 192.168.12.0/24 -d 192.168.12.1 -p udp -m udp --dport 53 -j REDIRECT --to-ports 5353
 iptables -w -I INPUT -p udp -m udp --dport 67 -j ACCEPT'''
 	print(interface_commands, dns_commands)
-
-	start_access_point = '''
+	file = open("commands.sh", "w")
+	file.wite(interface_commands+"\n"+dns_commands)
+	file.close()
+	os.system('chmod 777 -R commands.sh')
+	subprocess.call(["commands.sh"])
+	start_access_point = '''	
 dnsmasq -C dnsmasq.conf -x dnsmasq.pid -l dnsmasq.leases -p 5353
-stdbuf hostapd hostapd.conf &
+mkdir hostapd_ctrl
+stdbuf -oL hostapd hostapd.conf &
 '''
-
-
 
 def main():
 	parser = argparse.ArgumentParser()
