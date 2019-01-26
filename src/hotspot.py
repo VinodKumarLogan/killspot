@@ -74,6 +74,11 @@ dnsmasq -C dnsmasq.conf -x dnsmasq.pid -l dnsmasq.leases -p 5353
 mkdir hostapd_ctrl
 stdbuf -oL hostapd hostapd.conf &
 '''
+	file = open("deploy.sh", "w")
+	file.wite(start_access_point)
+	file.close()
+	os.system('chmod 777 -R deploy.sh')
+	subprocess.call(["deploy.sh"])
 
 def main():
 	parser = argparse.ArgumentParser()
