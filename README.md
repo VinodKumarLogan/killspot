@@ -2,11 +2,21 @@
 A simulator for man in the middle attack for public Wi-Fi hotspots and Access points
 
 
-Routing Functionality: is activated by default on Mac and Linux (refer this link for configuring 
-https://apple.stackexchange.com/questions/313990/how-to-create-this-static-route-on-macos)
+Requirements:
 
-For MacOS:
+Linux:
+Python3: sudo apt-get install python3 python3-pip
+Access Points: pip3 install access_points
+Network Interfaces: pip3 install netifaces
+Argparse: pip3 install argparse
 
 
+Usage:
 
-For Linux:
+Need to be run as root user
+sudo -i
+
+python3 hotspot.py -s <SSID> -i <Wi-Fi Interface>
+
+Example: 
+python3 hotspot.py -s killspot-access -i wlan0
