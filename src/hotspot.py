@@ -1,18 +1,8 @@
-from access_points import get_scanner
 from logger import create_log_filename, get_current_time, write_to_log_file
 import argparse
 import subprocess
 import netifaces
 import os
-
-def retrieve_access_points():
-	wifi_scanner = get_scanner()
-	access_points = dict()
-	for ap in wifi_scanner.get_access_points():
-		access_points[ap['ssid']] = ap['bssid']
-	for ap,mac in access_points.items():
-		print("Access Points: ", ap, " ; MAC Address: ", mac)
-	return access_points
 
 def create_host(ssid, interface, password):
 	file = open("hostapd.conf", "w")
@@ -88,9 +78,9 @@ def main():
 	parser.add_argument('-i','--interface', help='Name of the Wi-Fi interface', required=True, default="wlan0")
 	parser.add_argument('-p','--password', help='Password for the new access point', required=False, default=None)	
 	args = vars(parser.parse_args())
-	aps = retrieve_access_points()
-	filename = create_log_filename()
-	write_to_log_file(filename, aps)
+	#aps = retrieve_access_points()
+	#filename = create_log_filename()
+	#write_to_log_file(filename, aps)
 	ssid, interface, password = args['ssid'], args['interface'], args['password'] 
 	print("Create new access point with SSID ", ssid, " ; on Wi-Fi Interface ", interface, " with password ", password)
 	create_host(ssid, interface, password)
