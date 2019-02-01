@@ -68,7 +68,8 @@ iptables -w -I INPUT -p udp -m udp --dport 67 -j ACCEPT'''
 	file.wite(interface_commands+"\n"+dns_commands)
 	file.close()
 	os.system('chmod 777 -R commands.sh')
-	subprocess.call(["commands.sh"])
+	os.system('/bin/bash commands.sh')
+	#subprocess.call(["/bin/bash","commands.sh"])
 	start_access_point = '''	
 dnsmasq -C dnsmasq.conf -x dnsmasq.pid -l dnsmasq.leases -p 5353
 mkdir hostapd_ctrl
@@ -78,7 +79,8 @@ stdbuf -oL hostapd hostapd.conf &
 	file.wite(start_access_point)
 	file.close()
 	os.system('chmod 777 -R deploy.sh')
-	subprocess.call(["deploy.sh"])
+	os.system('/bin/bash deploy.sh')
+	#subprocess.call(["/bin/bash","deploy.sh"])
 
 def main():
 	parser = argparse.ArgumentParser()
