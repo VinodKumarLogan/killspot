@@ -4,22 +4,37 @@ import subprocess
 import netifaces
 import os
 
-def create_host(ssid, interface, password):
-	file = open("hostapd.conf", "w")
+def create_host(ssid, interface, mac_address):
+	pwd = os.getcwd()
+	print(pwd)
+	os.system('''mkdir %s/configs
+mkdir %s/configs/hostapd_ctrl
+mkdir %s/configs/ifaces
+touch %s/configs/ifaces/ks0
+echo ks0 > %s/configs/wifi_iface
+echo %s > %s/configs/nat_internet_iface
+touch %s/configs/dnsmasq.leases
+echo 0 > %s/configs/ip_forward
+echo 0 > %s/configs/%s_forwarding
+touch %s/configs/hostapd.conf
+touch %s/configs/dnsmasq.conf
+''' % (pwd, pwd, pwd, interface, pwd, pwd, pwd, pwd, interface, pwd, pwd))
+	file = open("%s/configs/hostapd.conf" % (pwd), "w")
 	host_data = '''beacon_int=100
 ssid=%s
 interface=ks0
 driver=%s
 channel=6
-ctrl_interface=hostapd_ctrl
+ctrl_interface=%s/configs/hostapd_ctrl
 ctrl_interface_group=0
+ignore_broadcast_ssid=0
 ap_isolate=0
 hw_mode=g
-''' % (ssid, "nl80211")
+''' % (ssid, "nl80211", pwd)
 	print(host_data)
 	file.write(host_data)
 	file.close()
-	file = open("dnsmasq.conf", "w")
+	file = open("%s/configs/dnsmasq.conf" % (pwd), "w")
 	dhcp_data = '''listen-address=192.168.12.1
 bind-dynamic
 dhcp-range=192.168.12.1,192.168.12.254,255.255.255.0,24h
@@ -31,7 +46,7 @@ no-hosts
 	file.write(dhcp_data)
 	print(dhcp_data)
 	file.close()
-	mac_address = netifaces.ifaddresses(interface)[netifaces.AF_LINK][0]['addr'][:-2] + "e2"
+	#mac_address = netifaces.ifaddresses(interface)[netifaces.AF_LINK][0]['addr'][:-2] + "e2"
 	print("Adding new interface ks0 with ",mac_address)
 	interface_commands = '''chmod 777 hostapd.conf dnsmasq.conf
 iw dev %s interface add ks0 type __ap
@@ -43,7 +58,7 @@ ip addr add 192.168.12.1/24 broadcast 192.168.12.255 dev ks0
 iptables -w -t nat -I POSTROUTING -s 192.168.12.0/24 ! -o ks0 -j MASQUERADE
 iptables -w -I FORWARD -i ks0 -s 192.168.12.0/24 -j ACCEPT
 iptables -w -I FORWARD -i %s -d 192.168.12.0/24 -j ACCEPT
-echo 1 > /proc/sys/net/ipv4/conf/%s/forwarding
+echo 1 > /proc/sys/net/ipv4/conf/	%s/configs/forwarding
 echo 1 > /proc/sys/net/ipv4/ip_forward
 modprobe nf_nat_pptp > /dev/null 2>&1''' % (interface, mac_address, interface, interface)
 
@@ -54,36 +69,34 @@ iptables -w -t nat -I PREROUTING -s 192.168.12.0/24 -d 192.168.12.1 -p tcp -m tc
 iptables -w -t nat -I PREROUTING -s 192.168.12.0/24 -d 192.168.12.1 -p udp -m udp --dport 53 -j REDIRECT --to-ports 5353
 iptables -w -I INPUT -p udp -m udp --dport 67 -j ACCEPT'''
 	print(interface_commands, dns_commands)
-	file = open("commands.sh", "w")
-	file.wite(interface_commands+"\n"+dns_commands)
+	file = open("%s/configs/commands.sh" % (pwd), "w")
+	file.write(interface_commands+"\n"+dns_commands)
 	file.close()
-	os.system('chmod 777 -R commands.sh')
-	os.system('/bin/bash commands.sh')
-	#subprocess.call(["/bin/bash","commands.sh"])
+	os.system('chmod 777 %s/configs/commands.sh' % (pwd))
+	os.system('/bin/bash %s/configs/commands.sh' % (pwd)) 
 	start_access_point = '''	
+umask 0033
 dnsmasq -C dnsmasq.conf -x dnsmasq.pid -l dnsmasq.leases -p 5353
-mkdir hostapd_ctrl
+umask 0077
 stdbuf -oL hostapd hostapd.conf &
 '''
-	file = open("deploy.sh", "w")
-	file.wite(start_access_point)
+	file = open("%s/configs/deploy.sh" % (pwd), "w")
+	file.write(start_access_point)
 	file.close()
-	os.system('chmod 777 -R deploy.sh')
-	os.system('/bin/bash deploy.sh')
-	#subprocess.call(["/bin/bash","deploy.sh"])
+	os.system('chmod 777 %s/configs/deploy.sh' % (pwd))
+	os.system('/bin/bash %s/configs/deploy.sh' % (pwd))
+	
 
 def main():
 	parser = argparse.ArgumentParser()
 	parser.add_argument('-s','--ssid', help='SSID for the new access point', required=True, default="Killspot")
 	parser.add_argument('-i','--interface', help='Name of the Wi-Fi interface', required=True, default="wlan0")
-	parser.add_argument('-p','--password', help='Password for the new access point', required=False, default=None)	
+	parser.add_argument('-m','--mac_address', help='MAC address of the interface', required=True, default="00:00:00:00:00:00")
+	#parser.add_argument('-p','--password', help='Password for the new access point', required=False, default=None)	
 	args = vars(parser.parse_args())
-	#aps = retrieve_access_points()
-	#filename = create_log_filename()
-	#write_to_log_file(filename, aps)
-	ssid, interface, password = args['ssid'], args['interface'], args['password'] 
-	print("Create new access point with SSID ", ssid, " ; on Wi-Fi Interface ", interface, " with password ", password)
-	create_host(ssid, interface, password)
+	ssid, interface, mac_address = args['ssid'], args['interface'], args['mac_address'] 
+	print("Create new access point with SSID ", ssid, " ; on Wi-Fi Interface ", interface, " with mac address ", mac_address)
+	create_host(ssid, interface, mac_address)
 	
 if __name__=="__main__":
 	main()
