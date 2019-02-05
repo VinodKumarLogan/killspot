@@ -7,25 +7,25 @@ import os
 def create_host(ssid, interface, mac_address):
 	pwd = os.getcwd()
 	print(pwd)
-	os.system('''
-mkdir %s/hostapd_ctrl
-mkdir %s/ifaces
-touch %s/ifaces/ks0
-echo ks0 > %s/wifi_iface
-echo %s > %s/nat_internet_iface
-touch %s/dnsmasq.leases
-echo 0 > %s/ip_forward
-echo 0 > %s/%s_forwarding
-touch %s/hostapd.conf
-touch %s/dnsmasq.conf
+	os.system('''mkdir %s/configs
+mkdir %s/configs/hostapd_ctrl
+mkdir %s/configs/ifaces
+touch %s/configs/ifaces/ks0
+echo ks0 > %s/configs/wifi_iface
+echo %s > %s/configs/nat_internet_iface
+touch %s/configs/dnsmasq.leases
+echo 0 > %s/configs/ip_forward
+echo 0 > %s/configs/%s_forwarding
+touch %s/configs/hostapd.conf
+touch %s/configs/dnsmasq.conf
 ''' % (pwd, pwd, pwd, pwd, pwd, interface, pwd, pwd, pwd, pwd, interface, pwd, pwd))
-	file = open("%s/hostapd.conf" % (pwd), "w")
+	file = open("%s/configs/hostapd.conf" % (pwd), "w")
 	host_data = '''beacon_int=100
 ssid=%s
 interface=ks0
 driver=%s
 channel=6
-ctrl_interface=%s/hostapd_ctrl
+ctrl_interface=%s/configs/hostapd_ctrl
 ctrl_interface_group=0
 ignore_broadcast_ssid=0
 ap_isolate=0
@@ -34,7 +34,7 @@ hw_mode=g
 	print(host_data)
 	file.write(host_data)
 	file.close()
-	file = open("%s/dnsmasq.conf" % (pwd), "w")
+	file = open("%s/configs/dnsmasq.conf" % (pwd), "w")
 	dhcp_data = '''listen-address=192.168.12.1
 bind-dynamic
 dhcp-range=192.168.12.1,192.168.12.254,255.255.255.0,24h
@@ -48,9 +48,9 @@ no-hosts
 	file.close()
 	print("Adding new interface ks0 with ",mac_address)
 	interface_commands = '''chmod 777 hostapd.conf dnsmasq.conf
-echo "\n\n\n" >> /etc/NetworkManager/NetworkManager.conf
-echo "[keyfile]\n" >> /etc/NetworkManager/NetworkManager.conf
-echo "unmanged-device=interface-name:ks0" >> /etc/NetworkManager/NetworkManager.conf
+echo -e "\\n\\n\\n" >> /etc/NetworkManager/NetworkManager.conf
+echo -e "[keyfile]\\n" >> /etc/NetworkManager/NetworkManager.conf
+echo "unmanaged-devices=interface-name:ks0" >> /etc/NetworkManager/NetworkManager.conf
 iw dev %s interface add ks0 type __ap
 ip link set down dev ks0
 ip link set dev ks0 address %s
@@ -71,20 +71,20 @@ iptables -w -t nat -I PREROUTING -s 192.168.12.0/24 -d 192.168.12.1 -p tcp -m tc
 iptables -w -t nat -I PREROUTING -s 192.168.12.0/24 -d 192.168.12.1 -p udp -m udp --dport 53 -j REDIRECT --to-ports 5353
 iptables -w -I INPUT -p udp -m udp --dport 67 -j ACCEPT'''
 	print(interface_commands, dns_commands)
-	file = open("%s/commands.sh" % (pwd), "w")
+	file = open("%s/configs/commands.sh" % (pwd), "w")
 	file.write(interface_commands+"\n"+dns_commands)
 	file.close()
-	os.system('chmod 777 %s/commands.sh' % (pwd))
-	os.system('/bin/bash %s/commands.sh' % (pwd)) 
+	os.system('chmod 777 %s/configs/commands.sh' % (pwd))
+	os.system('bash %s/configs/commands.sh' % (pwd)) 
 	start_access_point = '''
-dnsmasq -C %s/dnsmasq.conf -x %s/dnsmasq.pid -l %s/dnsmasq.leases -p 5353
-stdbuf -oL hostapd hostapd.conf &
-''' % (pwd, pwd, pwd)
-	file = open("%s/deploy.sh" % (pwd), "w")
+dnsmasq -C %s/configs/dnsmasq.conf -x %s/configs/dnsmasq.pid -l %s/configs/dnsmasq.leases -p 5353
+stdbuf -oL hostapd %s/configs/hostapd.conf &
+''' % (pwd, pwd, pwd, pwd)
+	file = open("%s/configs/deploy.sh" % (pwd), "w")
 	file.write(start_access_point)
 	file.close()
-	os.system('chmod 777 %s/deploy.sh' % (pwd))
-	os.system('/bin/bash %s/deploy.sh' % (pwd))
+	os.system('chmod 777 %s/configs/deploy.sh' % (pwd))
+	os.system('bash %s/configs/deploy.sh' % (pwd))
 	
 
 def main():
