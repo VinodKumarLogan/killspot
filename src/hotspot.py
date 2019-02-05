@@ -7,7 +7,7 @@ import os
 def create_host(ssid, interface, mac_address):
 	pwd = os.getcwd()
 	print(pwd)
-	os.system('''mkdir %s
+	os.system('''
 mkdir %s/hostapd_ctrl
 mkdir %s/ifaces
 touch %s/ifaces/ks0
@@ -46,9 +46,11 @@ no-hosts
 	file.write(dhcp_data)
 	print(dhcp_data)
 	file.close()
-	#mac_address = netifaces.ifaddresses(interface)[netifaces.AF_LINK][0]['addr'][:-2] + "e2"
 	print("Adding new interface ks0 with ",mac_address)
 	interface_commands = '''chmod 777 hostapd.conf dnsmasq.conf
+echo "\n\n\n" >> /etc/NetworkManager/NetworkManager.conf
+echo "[keyfile]\n" >> /etc/NetworkManager/NetworkManager.conf
+echo "unmanged-device=interface-name:ks0" >> /etc/NetworkManager/NetworkManager.conf
 iw dev %s interface add ks0 type __ap
 ip link set down dev ks0
 ip link set dev ks0 address %s
