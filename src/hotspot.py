@@ -47,10 +47,10 @@ no-hosts
 	print(dhcp_data)
 	file.close()
 	print("Adding new interface ks0 with ",mac_address)
-	interface_commands = '''chmod 777 hostapd.conf dnsmasq.conf
-echo -e "\\n\\n\\n" >> /etc/NetworkManager/NetworkManager.conf
-echo -e "[keyfile]\\n" >> /etc/NetworkManager/NetworkManager.conf
-echo "unmanaged-devices=interface-name:ks0" >> /etc/NetworkManager/NetworkManager.conf
+	interface_commands = '''
+echo -e "\\n\\n[keyfile]\\nunmanaged-devices=interface-name:ks0" >> /etc/NetworkManager/NetworkManager.conf
+network_manager_pid=$(pidof NetworkManager)
+[[ -n "$network_manager_pid" ]] && kill -HUP $network_manager_pid
 iw dev %s interface add ks0 type __ap
 ip link set down dev ks0
 ip link set dev ks0 address %s
