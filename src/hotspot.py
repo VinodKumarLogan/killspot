@@ -35,11 +35,11 @@ hw_mode=g
 	file.write(host_data)
 	file.close()
 	file = open("%s/configs/dnsmasq.conf" % (pwd), "w")
-	dhcp_data = '''listen-address=192.168.13.1
+	dhcp_data = '''listen-address=192.168.16.1
 bind-dynamic
-dhcp-range=192.168.13.1,192.168.13.254,255.255.255.0,24h
-dhcp-option-force=option:router,192.168.13.1
-dhcp-option-force=option:dns-server,192.168.13.1
+dhcp-range=192.168.16.1,192.168.16.254,255.255.255.0,24h
+dhcp-option-force=option:router,192.168.16.1
+dhcp-option-force=option:dns-server,192.168.16.1
 dhcp-option-force=option:mtu,1500
 no-hosts
 '''
@@ -56,10 +56,10 @@ ip link set down dev ks0
 ip link set dev ks0 address %s
 ip addr flush ks0
 ip link set up dev ks0
-ip addr add 192.168.13.1/24 broadcast 192.168.13.255 dev ks0
-iptables -w -t nat -I POSTROUTING -s 192.168.13.0/24 ! -o ks0 -j MASQUERADE
-iptables -w -I FORWARD -i ks0 -s 192.168.13.0/24 -j ACCEPT
-iptables -w -I FORWARD -i %s -d 192.168.13.0/24 -j ACCEPT
+ip addr add 192.168.16.1/24 broadcast 192.168.16.255 dev ks0
+iptables -w -t nat -I POSTROUTING -s 192.168.16.0/24 ! -o ks0 -j MASQUERADE
+iptables -w -I FORWARD -i ks0 -s 192.168.16.0/24 -j ACCEPT
+iptables -w -I FORWARD -i %s -d 192.168.16.0/24 -j ACCEPT
 echo 1 > /proc/sys/net/ipv4/conf/%s/forwarding
 echo 1 > /proc/sys/net/ipv4/ip_forward
 modprobe nf_nat_pptp > /dev/null 2>&1''' % (interface, mac_address, interface, interface)
@@ -67,8 +67,8 @@ modprobe nf_nat_pptp > /dev/null 2>&1''' % (interface, mac_address, interface, i
 	dns_commands = '''
 iptables -w -I INPUT -p tcp -m tcp --dport 5353 -j ACCEPT
 iptables -w -I INPUT -p udp -m udp --dport 5353 -j ACCEPT
-iptables -w -t nat -I PREROUTING -s 192.168.13.0/24 -d 192.168.13.1 -p tcp -m tcp --dport 53 -j REDIRECT --to-ports 5353
-iptables -w -t nat -I PREROUTING -s 192.168.13.0/24 -d 192.168.13.1 -p udp -m udp --dport 53 -j REDIRECT --to-ports 5353
+iptables -w -t nat -I PREROUTING -s 192.168.16.0/24 -d 192.168.16.1 -p tcp -m tcp --dport 53 -j REDIRECT --to-ports 5353
+iptables -w -t nat -I PREROUTING -s 192.168.16.0/24 -d 192.168.16.1 -p udp -m udp --dport 53 -j REDIRECT --to-ports 5353
 iptables -w -I INPUT -p udp -m udp --dport 67 -j ACCEPT'''
 	print(interface_commands, dns_commands)
 	file = open("%s/configs/commands.sh" % (pwd), "w")
@@ -79,13 +79,13 @@ iptables -w -I INPUT -p udp -m udp --dport 67 -j ACCEPT'''
 	start_access_point = '''
 dnsmasq -C %s/configs/dnsmasq.conf -x %s/configs/dnsmasq.pid -l %s/configs/dnsmasq.leases -p 5353
 stdbuf -oL hostapd %s/configs/hostapd.conf &
+echo $(pidof hostapd) > %s/configs/hostapd.pid
 ''' % (pwd, pwd, pwd, pwd)
 	file = open("%s/configs/deploy.sh" % (pwd), "w")
 	file.write(start_access_point)
 	file.close()
 	os.system('chmod 777 %s/configs/deploy.sh' % (pwd))
-	os.system('bash %s/configs/deploy.sh' % (pwd))
-	
+	os.system('bash %s/configs/deploy.sh' % (pwd))	
 
 def main():
 	parser = argparse.ArgumentParser()
