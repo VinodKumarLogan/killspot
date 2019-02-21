@@ -22,8 +22,8 @@ Need to be run as root user
 sudo -i
 
 
-python3 hotspot.py -s <SSID> -i <Wi-Fi Interface>
+python3 hotspot.py -s <SSID> -i <Wi-Fi Interface> -m <MAC Address>
 
 Example: 
 
-python3 hotspot.py -s killspot-access -i wlan0
+python3 hotspot.py -s killspot-access -i wlan0 -m 

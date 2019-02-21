@@ -4,9 +4,22 @@ import subprocess
 import netifaces
 import os
 
+# Creates the Acess-Point
 def create_host(ssid, interface, mac_address):
 	pwd = os.getcwd()
 	print(pwd)
+	# We make use of system calls to get most of the job done
+	# Here, we create the config files that will be populated
+	# once we get the required information from the system
+	# configs = directory to store all the configurations
+	# hostapd_ctrl = the directory used by hostapd while running the AP
+	# ifaces = directory to store the virtual interface
+	# ks0 = the new virtual interface that is used for AP
+	# wifi_iface = the interface using internet
+	# nat_interface_iface = interface for NAT between the virtual interface and wifi_iface
+	# ip_forward = configuration for setting IPv4 forwarding
+	# hostapd.conf = the configuration that is used by hostapd 
+	# dnsmasq.conf = DNS and DHCPv4 configurations
 	os.system('''mkdir %s/configs
 mkdir %s/configs/hostapd_ctrl
 mkdir %s/configs/ifaces
@@ -19,6 +32,14 @@ echo 0 > %s/configs/%s_forwarding
 touch %s/configs/hostapd.conf
 touch %s/configs/dnsmasq.conf
 ''' % (pwd, pwd, pwd, pwd, pwd, interface, pwd, pwd, pwd, pwd, interface, pwd, pwd))
+	
+	# ssid = name of the new WiFi hotspot
+	# interface = new interface name
+	# driver = WiFi driver
+	# channel = WiFi frequency bandwidth range
+	# ctrl = hostapd runtime control configurations
+	# ignore broadcast ssid = setting to 0, i.e. need to broadcast
+	# ap isolate = setting to 0, need to be part of the network
 	file = open("%s/configs/hostapd.conf" % (pwd), "w")
 	host_data = '''beacon_int=100
 ssid=%s
@@ -34,6 +55,9 @@ hw_mode=g
 	print(host_data)
 	file.write(host_data)
 	file.close()
+	# dhcp range = range of IPv4 addresses to be given to clients
+	# dns server = the local DNS server configuration
+	# mtu = maximum packet size that can be transmitted through the router
 	file = open("%s/configs/dnsmasq.conf" % (pwd), "w")
 	dhcp_data = '''listen-address=192.168.16.1
 bind-dynamic
@@ -47,6 +71,9 @@ no-hosts
 	print(dhcp_data)
 	file.close()
 	print("Adding new interface ks0 with ",mac_address)
+	# Creating ks0 interface using Linux "ip link" command
+	# Adding Routing table entries using Linux "iptables" command
+	# Forwarding the packets to the new IP of the new interface
 	interface_commands = '''
 echo -e "\\n\\n[keyfile]\\nunmanaged-devices=interface-name:ks0" >> /etc/NetworkManager/NetworkManager.conf
 network_manager_pid=$(pidof NetworkManager)
@@ -63,7 +90,9 @@ iptables -w -I FORWARD -i %s -d 192.168.16.0/24 -j ACCEPT
 echo 1 > /proc/sys/net/ipv4/conf/%s/forwarding
 echo 1 > /proc/sys/net/ipv4/ip_forward
 modprobe nf_nat_pptp > /dev/null 2>&1''' % (interface, mac_address, interface, interface)
-
+	# We need to route the traffic from ks0 to the native WiFi (internet) interface and back
+	# for persistent internet connectivity (using Network Address Translation)
+	
 	dns_commands = '''
 iptables -w -I INPUT -p tcp -m tcp --dport 5353 -j ACCEPT
 iptables -w -I INPUT -p udp -m udp --dport 5353 -j ACCEPT
@@ -76,6 +105,8 @@ iptables -w -I INPUT -p udp -m udp --dport 67 -j ACCEPT'''
 	file.close()
 	os.system('chmod 777 %s/configs/commands.sh' % (pwd))
 	os.system('bash %s/configs/commands.sh' % (pwd)) 
+
+	# hostapd = daemon process to initialize the WiFi settings and create the hotspot
 	start_access_point = '''
 dnsmasq -C %s/configs/dnsmasq.conf -x %s/configs/dnsmasq.pid -l %s/configs/dnsmasq.leases -p 5353
 stdbuf -oL hostapd %s/configs/hostapd.conf &
